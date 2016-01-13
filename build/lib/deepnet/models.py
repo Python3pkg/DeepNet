@@ -7,7 +7,7 @@ from .net import Network
 
 class ConvNet(Network):
 
-    def __init__(self, train_set_x, train_set_y, valid_set_x, valid_set_y, batch_size, nkerns=[20, 50, 50]):
+    def __init__(self, train_set_x, train_set_y, valid_set_x, valid_set_y, batch_size, nkerns=[20, 50], nb_neurons=[225, 100]):
 
         super().__init__(train_set_x, train_set_y, valid_set_x, valid_set_y, batch_size)
 
@@ -17,7 +17,9 @@ class ConvNet(Network):
         height = train_set_x.shape[2]
         width = train_set_x.shape[3]
 
-        self.layer0 = ConvLayer(
+        self.layers = []
+
+        layer0 = ConvLayer(
             self.rng,
             inputs=self.x,
             image_shape=(batch_size, nb_channel, height, width),
@@ -26,49 +28,85 @@ class ConvNet(Network):
          #    pad=2
         )
 
-        self.layer1 = PoolLayer(
-            inputs=self.layer0.output,
-            input_shape=self.layer0.output_shape
+        layer1 = PoolLayer(
+            inputs=layer0.output,
+            input_shape=layer0.output_shape
         )
 
-        self.layer2 = ConvLayer(
-            self.rng,
-            inputs=self.layer1.output,
-            image_shape=self.layer1.output_shape,
-            filter_shape=(nkerns[1], nkerns[0], 6, 6),
-         #    stride=2,
-         #    pad=2
-        )
+        self.layers.append(layer0)
+        self.layers.append(layer1)
 
-        self.layer3 = PoolLayer(
-            inputs=self.layer2.output,
-            input_shape=self.layer2.output_shape
-        )
+        # nkerns.pop(0)
+        for i, layer_param in enumerate(nkerns):
 
-        layer4_input = self.layer3.output.flatten(2)
+            if i != 0:
+                layer = ConvLayer(
+                    self.rng,
+                    inputs=self.layers[-1].output,
+                    image_shape=self.layers[-1].output_shape,
+                    filter_shape=(nkerns[i], nkerns[i-1], 6, 6),
+                 #    stride=2,
+                 #    pad=2
+                )
 
-        n_in = self.layer3.output_shape[1] * self.layer3.output_shape[2] * self.layer3.output_shape[3]
-        n_out = int(n_in/2)
+                self.layers.append(layer)
 
-        self.layer4 = FullyConnectedLayer(layer4_input, n_in, n_out, self.rng)
+                layer = PoolLayer(
+                    inputs=self.layers[-1].output,
+                    input_shape=self.layers[-1].output_shape
+                )
+
+                self.layers.append(layer)
+
+        layer4_input = self.layers[-1].output.flatten(2)
+
+        n_in = self.layers[-1].output_shape[1] * self.layers[-1].output_shape[2] * self.layers[-1].output_shape[3]
+        # n_out = int(n_in/2)
+
+        layer = FullyConnectedLayer(layer4_input, n_in, nb_neurons[0], self.rng)
+
+        self.layers.append(layer)
+
+        n_in = nb_neurons[0]
+        nb_neurons.pop(0)
+        for n_out in nb_neurons:
+
+            inputs = self.layers[-1].outputs
+            layer = FullyConnectedLayer(inputs, n_in, n_out, self.rng)
+            n_in = n_out
+            self.layers.append(layer)
 
         nb_outputs = len(np.unique(train_set_y))
-        self.layer5 = SoftmaxLayer(inputs=self.layer4.outputs, n_in=n_out, n_out=nb_outputs, rng=self.rng)
+        layer = SoftmaxLayer(inputs=self.layers[-1].outputs, n_in=n_out, n_out=nb_outputs, rng=self.rng)
 
-        self.layers = [self.layer0, self.layer2, self.layer4, self.layer5]
+        self.layers.append(layer)
 
 class MLP(Network):
 
-    def __init__(self, train_set_x, train_set_y, valid_set_x, valid_set_y, batch_size):
+    def __init__(self, train_set_x, train_set_y, valid_set_x, valid_set_y, batch_size, nb_neurons=[]):
 
         super().__init__(train_set_x, train_set_y, valid_set_x, valid_set_y, batch_size)
 
         self.x = T.dmatrix('x')
 
         nb_features = self.train_set_x.get_value().shape[1]
-        nb_outputs = len(np.unique(self.train_set_y.get_value()))
+        fc1 = FullyConnectedLayer(self.x, nb_features, nb_features, self.rng)
 
-        self.fc1 = FullyConnectedLayer(self.x, nb_features, nb_features, self.rng)
-        self.softmax_layer = SoftmaxLayer(self.fc1.outputs, nb_features, nb_outputs, self.rng)
+        self.layers = []
+        self.layers.append(fc1)
+        n_in = nb_features
+        for n_out in nb_neurons:
 
-        self.layers = [self.fc1, self.softmax_layer]
+            inputs = self.layers[-1].outputs
+            layer = FullyConnectedLayer(inputs, n_in, n_out, self.rng)
+            n_in = n_out
+            self.layers.append(layer)
+
+        n_out = len(np.unique(self.train_set_y.get_value()))
+        if len(hidden_layers) != 0:
+            n_in = hidden_layers[-1]
+        else:
+            n_in = nb_features
+
+        softmax_layer = SoftmaxLayer(self.layers[-1].outputs, n_in, n_out, self.rng)
+        self.layers.append(softmax_layer)

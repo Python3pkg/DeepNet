@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='deepnet',
-      version='0.2',
+      version='0.5',
       description='package for deep learning',
       url='https://github.com/leovetter/DeepNet',
       author='Léo Vetter',
