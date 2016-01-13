@@ -1,4 +1,5 @@
 import pickle
+import os
 import numpy as np
 import theano.tensor as T
 import theano
@@ -20,7 +21,7 @@ class Network():
                                     borrow=True)
 
         self.rng = RandomStreams(seed=465)
-        
+
         self.batch_size = batch_size
 
     def gradient_descent(self, cost, params, lr, momentum_rate):
@@ -51,7 +52,7 @@ class Network():
         n_train_batch = int(self.train_set_x.get_value(borrow=True).shape[0] / self.batch_size)
         n_valid_batch = int(self.valid_set_x.get_value(borrow=True).shape[0] / self.batch_size)
 
-        params = [layer.params for layer in self.layers]
+        params = [layer.params for layer in self.layers if hasattr(layer, 'params')]
 
         # L1 = abs(self.fc1.W).sum() + abs(self.softmax_layer.W).sum()
         # L2 = (self.fc1.W**2).sum() + (self.softmax_layer.W**2).sum()
@@ -130,11 +131,13 @@ class Network():
                 pickle.dump(train_error_rates, open('training_outputs/train_error_rates.p', 'wb'))
                 pickle.dump(valid_error_rates, open('training_outputs/valid_error_rates.p', 'wb'))
 
-            print('training epoch : %d \n train_loss : %f \n valid_loss : %f' % (epoch, train_loss, valid_loss))
+            print('epoch : %d \n train_loss : %f \n valid_loss : %f' % (epoch, train_loss, valid_loss))
 
             if valid_loss < best_validation_loss:
                 best_validation_loss = valid_loss
                 best_epoch = epoch
+                if not os.path.exists('training_outputs'):
+                    os.makedirs('training_outputs')
                 pickle.dump(self, open('training_outputs/best_model.p', 'wb'))
                 lr_patience_cpt = 0
                 stop_patience_cpt = 0
