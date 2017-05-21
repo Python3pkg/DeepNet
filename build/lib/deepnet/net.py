@@ -131,7 +131,7 @@ class Network():
                 pickle.dump(train_error_rates, open('training_outputs/train_error_rates.p', 'wb'))
                 pickle.dump(valid_error_rates, open('training_outputs/valid_error_rates.p', 'wb'))
 
-            print('epoch : %d \n train_loss : %f \n valid_loss : %f' % (epoch, train_loss, valid_loss))
+            print(('epoch : %d \n train_loss : %f \n valid_loss : %f' % (epoch, train_loss, valid_loss)))
 
             if valid_loss < best_validation_loss:
                 best_validation_loss = valid_loss
@@ -149,7 +149,7 @@ class Network():
 
                 learning_rate /= 2
                 lr_patience_cpt = 0
-                print('new learning rate : %f' % learning_rate)
+                print(('new learning rate : %f' % learning_rate))
             elif stop_patience_cpt > stop_patience or epoch == max_epoch:
                 break
 
